@@ -1,0 +1,40 @@
+// Copyright lowRISC contributors.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+{
+  name: "lowrisc_ip",
+  target_dir: "lowrisc_ip",
+  patch_dir: "patches/lowrisc_ip",
+
+  upstream: {
+    url: "https://github.com/lowRISC/opentitan"
+    // Pinned revision of main branch
+    rev: "master"
+  }
+
+  mapping: [
+    // Utilities.
+    {from: "util/reggen",     to: "util/reggen"}, // Dependency of crossbar generator.
+    {from: "util/regtool.py", to: "util/regtool.py"},
+    {from: "util/tlgen.py",   to: "util/tlgen.py"}, // Crossbar generator.
+    {from: "util/tlgen",      to: "util/tlgen"},
+
+    // Hardware IP blocks.
+    {from: "hw/ip/lc_ctrl", to: "ip/lc_ctrl"}, // Dependency of crossbar.
+    {from: "hw/ip/tlul",    to: "ip/tlul", patch_dir: "tlul"}, // Memory bus.
+    {from: "hw/ip/uart",    to: "ip/uart"}, // Serial input and output.
+
+    // Primitives.
+    {from: "hw/ip/prim",         to: "ip/prim"},
+    {from: "hw/ip/prim_generic", to: "ip/prim_generic"},
+    {from: "hw/ip/prim_xilinx",  to: "ip/prim_xilinx"},
+
+    // Lint.
+    {from: "hw/lint", to: "lint", patch_dir: "lint"},
+
+    // Simulation.
+    {from: "hw/dv/dpi/uartdpi", to: "dv/dpi/uartdpi"},
+    {from: "hw/dv/sv",          to: "dv/sv"},
+    {from: "hw/dv/verilator",   to: "dv/verilator"},
+  ]
+}

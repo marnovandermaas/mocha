@@ -1,0 +1,13 @@
+diff --git a/tlul.core b/tlul.core
+index 9fa54d5..0c805f5 100644
+--- a/tlul.core
++++ b/tlul.core
+@@ -14,8 +14,6 @@ filesets:
+       - lowrisc:tlul:adapter_sram_racl
+       - lowrisc:tlul:adapter_reg
+       - lowrisc:tlul:adapter_reg_racl
+-      - lowrisc:tlul:adapter_dmi
+-      - lowrisc:tlul:jtag_dtm
+       - lowrisc:tlul:sram2tlul
+       - lowrisc:tlul:request_loopback
+ 
