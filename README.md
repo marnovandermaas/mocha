@@ -11,3 +11,11 @@ Specifically, any hardware that requires changes with respect to CHERI should be
 CHERI Mocha is part of the COSMIC project, which is a collaboration between lowRISC, Capabilities Limited and Oxford University Innovation.
 It is work that is funded by Innovate UK and the Department for Science, Innovation and Technology.
 
+## Architecture
+
+The Mocha architecture contains two crossbars.
+One crossbar is capability width and is meant for the main memory.
+The other crossbar is uncached and meant to contain the peripherals.
+Because most of these peripherals are imported from OpenTitan, in the first instance this bus is implemented as a TileLink Ultra-Lightweight bus with 32 width.
+
+![Mocha block diagram](doc/img/mocha.svg)

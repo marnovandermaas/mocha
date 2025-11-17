@@ -1,0 +1,129 @@
+# Global settings
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 7
+  }
+}
+
+dram: |md
+    #### DRAM
+
+    1 GiB of DDR3
+
+    Includes PHY
+
+    Includes controller
+|
+dram.shape: rectangle
+
+Mocha: {
+    # Processor arriane.sv includes just cva6.sv
+    CVA6-CHERI {
+        # csr_regfile
+        #CSR regfile
+        # perf_counters
+        #Performance counters
+        #Controller
+        #Tracing: {
+        #    # instr_tracer
+        #    Instruction tracer
+        #    # cva6_rvfi_probes
+        #    RVFI probes
+        #}
+        Frontend
+        # id_stage
+        ID stage
+        # issue_stage
+        Issue stage
+        # ex_stage
+        EX stage
+        # commit_stage
+        Commit stage
+        # cache_subsystem
+        Cache subsystem
+
+        # memory
+        Frontend <- Cache subsystem
+        EX stage <-> Cache subsystem
+    }
+
+    axi: |md
+        #### AXI crossbar
+
+        Capability width
+    |
+    axi.shape: rectangle
+
+    tlul: |md
+        #### TileLink crossbar
+
+        32-bit width
+    |
+    tlul.shape: rectangle
+    # Uncached
+    tlul.style.fill: hotpink
+
+    CVA6-CHERI.cache subsystem <-> axi
+    CVA6-CHERI.EX stage <-> tlul
+    axi <-> Tag control
+    axi <-> Debug
+
+    Peripherals {
+        Mailbox
+        Mailbox.style.fill:lightpink
+        I2C
+        I2C.style.fill: lightpink
+        SPI dev
+        SPI dev.style.fill: lightpink
+        UART
+        UART.style.fill: lightpink
+        # USB device
+        GPIO
+        GPIO.style.fill: lightpink
+        rom: |md
+            #### ROM
+
+            32 KiB
+        |
+        rom.shape: rectangle
+        rom.style.fill: lightpink
+        SRAM
+        SRAM.style.fill:lightpink
+        PLIC
+        PLIC.style.fill:lightpink
+        Timer
+        Timer.style.fill: lightpink
+    }
+    # Uncached
+    Peripherals.style.fill: hotpink
+
+    tlul <-> Peripherals
+}
+
+chip: |md
+    #### Rest of chip
+
+    AXI crossbar
+
+    128-bit wide
+|
+chip.shape: rectangle
+
+chip <-> Flash
+
+# External interfaces
+Mocha.Tag control <-> dram
+#Mocha.axi <-> Non-volatile memory
+Mocha.axi <-> chip
+Mocha.Peripherals.Mailbox <-> chip
+# Mocha.Peripherals.USB device <-> USB
+Mocha.Peripherals.SPI dev <-> SPI
+Mocha.Peripherals.UART <-> UART
+Mocha.Peripherals.GPIO <-> GPIO
+Mocha.Peripherals.I2C <-> I2C
+
+# Set global font size
+*.style.font-size: 50
+*.*.style.font-size: 50
+*.*.*.style.font-size: 40
