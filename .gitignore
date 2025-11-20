@@ -1,2 +1,9 @@
+# Python environment and cache.
 .venv
 __pycache__/
+# Build artefacts.
+build
+# Simulator outputs.
+performance_counters.csv
+sim.fst
+uart0.log
