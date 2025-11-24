@@ -1,0 +1,26 @@
+// Copyright lowRISC contributors.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+{
+  name: "cva6_cheri",
+  target_dir: "cva6_cheri",
+  patch_dir: "patches/cva6_cheri",
+
+  upstream: {
+    url: "https://github.com/Capabilities-Limited/cheri-cva6.git",
+    rev: "zcheri",
+  },
+
+  exclude_from_upstream: [
+    // Broken build files.
+    "ariane.core",
+    // CI configurations.
+    ".github",
+    ".gitlab-ci",
+    // External dependencies.
+    "core/cvfpu",
+    "corev_apu",
+    "vendor",
+    "verif",
+  ]
+}
