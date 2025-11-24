@@ -1,0 +1,650 @@
+diff --git a/axi.core b/axi.core
+index 1bce387..e7bedd5 100644
+--- a/axi.core
++++ b/axi.core
+@@ -18,7 +18,6 @@ filesets:
+       - src/axi_atop_filter.sv
+       - src/axi_burst_splitter_gran.sv
+       - src/axi_burst_unwrap.sv
+-      - src/axi_bus_compare.sv
+       - src/axi_cdc_dst.sv
+       - src/axi_cdc_src.sv
+       - src/axi_cut.sv
+@@ -75,45 +74,14 @@ filesets:
+       - src/axi_chan_compare.sv
+       - src/axi_dumper.sv
+       - src/axi_sim_mem.sv
+-      - src/axi_test.sv
+       # Level 5
+       - src/axi_xbar.sv
+       # Level 6
+       - src/axi_xp.sv
+     file_type : systemVerilogSource
+     depend :
+-      - ">=pulp-platform.org::common_cells:1.31.1"
+-  benchs:
+-    files:
+-      - test/tb_axi_dw_pkg.sv
+-      - test/tb_axi_xbar_pkg.sv
+-      - test/axi_synth_bench.sv
+-      - test/tb_axi_addr_test.sv
+-      - test/tb_axi_atop_filter.sv
+-      - test/tb_axi_bus_compare.sv
+-      - test/tb_axi_cdc.sv
+-      - test/tb_axi_delayer.sv
+-      - test/tb_axi_dw_downsizer.sv
+-      - test/tb_axi_dw_upsizer.sv
+-      - test/tb_axi_fifo.sv
+-      - test/tb_axi_isolate.sv
+-      - test/tb_axi_iw_converter.sv
+-      - test/tb_axi_lite_dw_converter.sv
+-      - test/tb_axi_lite_mailbox.sv
+-      - test/tb_axi_lite_regs.sv
+-      - test/tb_axi_lite_to_apb.sv
+-      - test/tb_axi_lite_to_axi.sv
+-      - test/tb_axi_lite_xbar.sv
+-      - test/tb_axi_modify_address.sv
+-      - test/tb_axi_serializer.sv
+-      - test/tb_axi_sim_mem.sv
+-      - test/tb_axi_slave_compare.sv
+-      - test/tb_axi_to_axi_lite.sv
+-      - test/tb_axi_to_mem_banked.sv
+-      - test/tb_axi_xbar.sv
+-    file_type : systemVerilogSource
+-    depend :
+-      - ">=pulp-platform.org::common_verification:0.2.5"
++      - lowrisc:common_cells:all
++      - lowrisc:prim:util
+ 
+ generators:
+   axi_intercon_gen:
+diff --git a/src/axi_demux.sv b/src/axi_demux.sv
+index 899d835..bdd31db 100644
+--- a/src/axi_demux.sv
++++ b/src/axi_demux.sv
+@@ -14,7 +14,6 @@
+ // - Thomas Benz <tbenz@iis.ee.ethz.ch>
+ // - Andreas Kurth <akurth@iis.ee.ethz.ch>
+ 
+-`include "common_cells/assertions.svh"
+ `include "common_cells/registers.svh"
+ 
+ `ifdef QUESTA
+diff --git a/src/axi_demux_simple.sv b/src/axi_demux_simple.sv
+index c7ba39f..ed7d3bd 100644
+--- a/src/axi_demux_simple.sv
++++ b/src/axi_demux_simple.sv
+@@ -14,7 +14,6 @@
+ // - Thomas Benz <tbenz@iis.ee.ethz.ch>
+ // - Andreas Kurth <akurth@iis.ee.ethz.ch>
+ 
+-`include "common_cells/assertions.svh"
+ `include "common_cells/registers.svh"
+ `include "axi/assign.svh"
+ 
+@@ -66,7 +65,7 @@ module axi_demux_simple #(
+   input  axi_resp_t   [NoMstPorts-1:0]  mst_resps_i
+ );
+ 
+-  localparam int unsigned IdCounterWidth = cf_math_pkg::idx_width(MaxTrans);
++  localparam int unsigned IdCounterWidth = prim_util_pkg::vbits(MaxTrans);
+   typedef logic [IdCounterWidth-1:0] id_cnt_t;
+ 
+   // pass through if only one master port
+@@ -259,7 +258,7 @@ module axi_demux_simple #(
+     //--------------------------------------
+     //  B Channel
+     //--------------------------------------
+-    logic [cf_math_pkg::idx_width(NoMstPorts)-1:0] b_idx;
++    logic [prim_util_pkg::vbits(NoMstPorts)-1:0] b_idx;
+ 
+     // Arbitration of the different B responses
+     rr_arb_tree #(
+@@ -377,7 +376,7 @@ module axi_demux_simple #(
+     //  R Channel
+     //--------------------------------------
+ 
+-    logic [cf_math_pkg::idx_width(NoMstPorts)-1:0] r_idx;
++    logic [prim_util_pkg::vbits(NoMstPorts)-1:0] r_idx;
+ 
+     // Arbitration of the different r responses
+     rr_arb_tree #(
+diff --git a/src/axi_dw_downsizer.sv b/src/axi_dw_downsizer.sv
+index 8ec51b8..7953ae7 100644
+--- a/src/axi_dw_downsizer.sv
++++ b/src/axi_dw_downsizer.sv
+@@ -53,7 +53,7 @@ module axi_dw_downsizer #(
+   import axi_pkg::aligned_addr;
+   import axi_pkg::modifiable  ;
+ 
+-  import cf_math_pkg::idx_width;
++  import prim_util_pkg::vbits;
+ 
+   // Type used to index which adapter is handling each outstanding transaction.
+   localparam TranIdWidth = AxiMaxReads > 1 ? $clog2(AxiMaxReads) : 1;
+@@ -571,8 +571,8 @@ module axi_dw_downsizer #(
+                 if (mst_resp.r_valid) begin
+                   automatic addr_t mst_port_offset;
+                   automatic addr_t slv_port_offset;
+-                  mst_port_offset = AxiMstPortStrbWidth == 1 ? '0 : r_req_q.ar.addr[idx_width(AxiMstPortStrbWidth)-1:0];
+-                  slv_port_offset = AxiSlvPortStrbWidth == 1 ? '0 : r_req_q.ar.addr[idx_width(AxiSlvPortStrbWidth)-1:0];
++                  mst_port_offset = AxiMstPortStrbWidth == 1 ? '0 : r_req_q.ar.addr[vbits(AxiMstPortStrbWidth)-1:0];
++                  slv_port_offset = AxiSlvPortStrbWidth == 1 ? '0 : r_req_q.ar.addr[vbits(AxiSlvPortStrbWidth)-1:0];
+ 
+                   // Serialization
+                   for (int b = 0; b < AxiSlvPortStrbWidth; b++) begin
+@@ -762,10 +762,10 @@ module axi_dw_downsizer #(
+         // Request was accepted
+         if (!w_req_q.aw_valid) begin
+           if (slv_req_i.w_valid) begin
+-            automatic logic [idx_width(AxiMstPortStrbWidth)-1:0] mst_port_offset;
+-            automatic logic [idx_width(AxiSlvPortStrbWidth)-1:0] slv_port_offset;
+-            mst_port_offset = AxiMstPortStrbWidth == 1 ? '0 : w_req_q.aw.addr[idx_width(AxiMstPortStrbWidth)-1:0];
+-            slv_port_offset = AxiSlvPortStrbWidth == 1 ? '0 : w_req_q.aw.addr[idx_width(AxiSlvPortStrbWidth)-1:0];
++            automatic logic [vbits(AxiMstPortStrbWidth)-1:0] mst_port_offset;
++            automatic logic [vbits(AxiSlvPortStrbWidth)-1:0] slv_port_offset;
++            mst_port_offset = AxiMstPortStrbWidth == 1 ? '0 : w_req_q.aw.addr[vbits(AxiMstPortStrbWidth)-1:0];
++            slv_port_offset = AxiSlvPortStrbWidth == 1 ? '0 : w_req_q.aw.addr[vbits(AxiSlvPortStrbWidth)-1:0];
+ 
+             // Valid output
+             mst_req.w_valid = !(forward_b_beat_full && w_req_q.aw.len == 0);
+diff --git a/src/axi_dw_upsizer.sv b/src/axi_dw_upsizer.sv
+index 623df82..3d78bf5 100644
+--- a/src/axi_dw_upsizer.sv
++++ b/src/axi_dw_upsizer.sv
+@@ -53,7 +53,7 @@ module axi_dw_upsizer #(
+   import axi_pkg::beat_addr   ;
+   import axi_pkg::modifiable  ;
+ 
+-  import cf_math_pkg::idx_width;
++  import prim_util_pkg::vbits;
+ 
+   // Type used to index which adapter is handling each outstanding transaction.
+   localparam TranIdWidth = AxiMaxReads > 1 ? $clog2(AxiMaxReads) : 1;
+@@ -486,10 +486,10 @@ module axi_dw_upsizer #(
+           // Request was accepted
+           if (!r_req_q.ar_valid)
+             if (mst_resp.r_valid && (idx_r_upsizer == t) && r_upsizer_valid) begin
+-              automatic logic [idx_width(AxiMstPortStrbWidth)-1:0] mst_port_offset;
+-              automatic logic [idx_width(AxiSlvPortStrbWidth)-1:0] slv_port_offset;
+-              mst_port_offset = AxiMstPortStrbWidth == 1 ? '0 : r_req_q.ar.addr[idx_width(AxiMstPortStrbWidth)-1:0];
+-              slv_port_offset = AxiSlvPortStrbWidth == 1 ? '0 : r_req_q.ar.addr[idx_width(AxiSlvPortStrbWidth)-1:0];
++              automatic logic [vbits(AxiMstPortStrbWidth)-1:0] mst_port_offset;
++              automatic logic [vbits(AxiSlvPortStrbWidth)-1:0] slv_port_offset;
++              mst_port_offset = AxiMstPortStrbWidth == 1 ? '0 : r_req_q.ar.addr[vbits(AxiMstPortStrbWidth)-1:0];
++              slv_port_offset = AxiSlvPortStrbWidth == 1 ? '0 : r_req_q.ar.addr[vbits(AxiSlvPortStrbWidth)-1:0];
+ 
+               // Valid output
+               slv_r_valid_tran[t] = 1'b1                                       ;
+@@ -617,8 +617,8 @@ module axi_dw_upsizer #(
+           if (slv_req_i.w_valid && slv_resp_o.w_ready) begin
+             automatic addr_t mst_port_offset;
+             automatic addr_t slv_port_offset;
+-            mst_port_offset = AxiMstPortStrbWidth == 1 ? '0 : w_req_q.aw.addr[idx_width(AxiMstPortStrbWidth)-1:0];
+-            slv_port_offset = AxiSlvPortStrbWidth == 1 ? '0 : w_req_q.aw.addr[idx_width(AxiSlvPortStrbWidth)-1:0];
++            mst_port_offset = AxiMstPortStrbWidth == 1 ? '0 : w_req_q.aw.addr[vbits(AxiMstPortStrbWidth)-1:0];
++            slv_port_offset = AxiSlvPortStrbWidth == 1 ? '0 : w_req_q.aw.addr[vbits(AxiSlvPortStrbWidth)-1:0];
+ 
+             // Serialization
+             for (int b = 0; b < AxiMstPortStrbWidth; b++)
+diff --git a/src/axi_id_remap.sv b/src/axi_id_remap.sv
+index 85dc66e..399c7ec 100644
+--- a/src/axi_id_remap.sv
++++ b/src/axi_id_remap.sv
+@@ -128,7 +128,7 @@ module axi_id_remap #(
+ 
+ 
+   // Remap tables keep track of in-flight bursts and their input and output IDs.
+-  localparam int unsigned IdxWidth = cf_math_pkg::idx_width(AxiSlvPortMaxUniqIds);
++  localparam int unsigned IdxWidth = prim_util_pkg::vbits(AxiSlvPortMaxUniqIds);
+   typedef logic [AxiSlvPortMaxUniqIds-1:0]  field_t;
+   typedef logic [AxiSlvPortIdWidth-1:0]     id_inp_t;
+   typedef logic [IdxWidth-1:0]              idx_t;
+@@ -433,7 +433,7 @@ module axi_id_remap_table #(
+   localparam type id_inp_t = logic [InpIdWidth-1:0],
+   /// Derived (**=do not override**) width of table index (ceiled binary logarithm of
+   /// `MaxUniqInpIds`).
+-  localparam int unsigned IdxWidth = cf_math_pkg::idx_width(MaxUniqInpIds),
++  localparam int unsigned IdxWidth = prim_util_pkg::vbits(MaxUniqInpIds),
+   /// Derived (**=do not override**) type of table index (width = `IdxWidth`).
+   localparam type idx_t = logic [IdxWidth-1:0],
+   /// Derived (**=do not override**) type with one bit per table entry (thus also output ID).
+diff --git a/src/axi_id_serialize.sv b/src/axi_id_serialize.sv
+index 671b38a..12934f2 100644
+--- a/src/axi_id_serialize.sv
++++ b/src/axi_id_serialize.sv
+@@ -83,7 +83,7 @@ module axi_id_serialize #(
+ );
+ 
+   /// Number of bits of the slave port ID that determine the mapping to the master port ID
+-  localparam int unsigned SelectWidth = cf_math_pkg::idx_width(AxiMstPortMaxUniqIds);
++  localparam int unsigned SelectWidth = prim_util_pkg::vbits(AxiMstPortMaxUniqIds);
+   /// Slice of slave port IDs that determines the master port ID
+   typedef logic [SelectWidth-1:0] select_t;
+ 
+diff --git a/src/axi_interleaved_xbar.sv b/src/axi_interleaved_xbar.sv
+index 83d215d..61a99aa 100644
+--- a/src/axi_interleaved_xbar.sv
++++ b/src/axi_interleaved_xbar.sv
+@@ -17,7 +17,7 @@
+ 
+ /// Interleaved version of the crossbar. This module is experimental; use at your own risk.
+ module axi_interleaved_xbar
+-import cf_math_pkg::idx_width;
++import prim_util_pkg::vbits;
+ #(
+   parameter axi_pkg::xbar_cfg_t Cfg                                   = '0,
+   parameter bit  ATOPs                                                = 1'b1,
+@@ -53,7 +53,7 @@ import cf_math_pkg::idx_width;
+ `ifdef VCS
+   input  logic      [Cfg.NoSlvPorts-1:0][MstPortsIdxWidth-1:0]          default_mst_port_i
+ `else
+-  input  logic      [Cfg.NoSlvPorts-1:0][idx_width(Cfg.NoMstPorts)-1:0] default_mst_port_i
++  input  logic      [Cfg.NoSlvPorts-1:0][vbits(Cfg.NoMstPorts)-1:0] default_mst_port_i
+ `endif
+ );
+ 
+@@ -64,7 +64,7 @@ import cf_math_pkg::idx_width;
+       (Cfg.NoMstPorts == 32'd1) ? 32'd1 : unsigned'($clog2(Cfg.NoMstPorts + 1));
+   typedef logic [MstPortsIdxWidthOne-1:0]           mst_port_idx_t;
+ `else
+-  typedef logic [idx_width(Cfg.NoMstPorts + 1)-1:0] mst_port_idx_t;
++  typedef logic [vbits(Cfg.NoMstPorts + 1)-1:0] mst_port_idx_t;
+ `endif
+ 
+   // signals from the axi_demuxes, one index more for decode error
+@@ -86,8 +86,8 @@ import cf_math_pkg::idx_width;
+     logic [MstPortsIdxWidth-1:0]          dec_aw,        dec_ar;
+     logic [MstPortsIdxWidth-1:0]          dec_inter_aw,  dec_inter_ar;
+ `else
+-    logic [idx_width(Cfg.NoMstPorts)-1:0] dec_aw,        dec_ar;
+-    logic [idx_width(Cfg.NoMstPorts)-1:0] dec_inter_aw,  dec_inter_ar;
++    logic [vbits(Cfg.NoMstPorts)-1:0] dec_aw,        dec_ar;
++    logic [vbits(Cfg.NoMstPorts)-1:0] dec_inter_aw,  dec_inter_ar;
+ `endif
+     mst_port_idx_t                        slv_aw_select, slv_ar_select;
+     logic                                 dec_aw_valid,  dec_aw_error;
+@@ -318,7 +318,7 @@ endmodule : axi_interleaved_xbar
+ `include "axi/typedef.svh"
+ 
+ module axi_interleaved_xbar_intf
+-import cf_math_pkg::idx_width;
++import prim_util_pkg::vbits;
+ #(
+   parameter axi_pkg::xbar_cfg_t Cfg     = '0,
+   parameter int unsigned AXI_USER_WIDTH =  0,
+@@ -341,7 +341,7 @@ import cf_math_pkg::idx_width;
+ `ifdef VCS
+   input  logic  [Cfg.NoSlvPorts-1:0][MstPortsIdxWidth-1:0]          default_mst_port_i
+ `else
+-  input  logic  [Cfg.NoSlvPorts-1:0][idx_width(Cfg.NoMstPorts)-1:0] default_mst_port_i
++  input  logic  [Cfg.NoSlvPorts-1:0][vbits(Cfg.NoMstPorts)-1:0] default_mst_port_i
+ `endif
+ );
+ 
+diff --git a/src/axi_inval_filter.sv b/src/axi_inval_filter.sv
+index 272f904..675e8a6 100644
+--- a/src/axi_inval_filter.sv
++++ b/src/axi_inval_filter.sv
+@@ -35,7 +35,7 @@ module axi_inval_filter #(
+     input  logic                 inval_ready_i
+   );
+ 
+-  import cf_math_pkg::idx_width;
++  import prim_util_pkg::vbits;
+ 
+   // Includes
+   `include "axi/typedef.svh"
+@@ -91,9 +91,9 @@ module axi_inval_filter #(
+           if (inval_ready_i) begin
+             // Continue if we are not done yet
+             // If the addr is misaligned wrt the cache line, we should invalidate one line more
+-            if ((L1LineWidth - aw_fifo_data.addr[idx_width(L1LineWidth)-1:0]) < ((aw_fifo_data.len + 1) << aw_fifo_data.size)) begin
++            if ((L1LineWidth - aw_fifo_data.addr[vbits(L1LineWidth)-1:0]) < ((aw_fifo_data.len + 1) << aw_fifo_data.size)) begin
+               state_d        = Invalidating;
+-              inval_offset_d = L1LineWidth - aw_fifo_data.addr[idx_width(L1LineWidth)-1:0];
++              inval_offset_d = L1LineWidth - aw_fifo_data.addr[vbits(L1LineWidth)-1:0];
+             end else begin
+               aw_fifo_pop = 1'b1;
+             end
+diff --git a/src/axi_lite_lfsr.sv b/src/axi_lite_lfsr.sv
+index ed3acb6..114415d 100644
+--- a/src/axi_lite_lfsr.sv
++++ b/src/axi_lite_lfsr.sv
+@@ -93,22 +93,23 @@ module axi_lite_lfsr #(
+     end
+ 
+     // B
+-    stream_fifo #(
+-        .FALL_THROUGH ( 1'b0 ),
+-        .DATA_WIDTH   ( 'd1  ),
+-        .DEPTH        ( 'd2  )
++    prim_fifo_sync #(
++        .pass  ( 1'b0 ),
++        .Width ( 'd1  ),
++        .Depth ( 'd2  )
+     ) i_stream_fifo_w_b (
+         .clk_i,
+         .rst_ni,
+-        .testmode_i,
+-        .flush_i    ( 1'b0                ),
+-        .usage_o    ( /* NOT CONNECTED */ ),
+-        .data_i     ( 1'b0                ),
+-        .valid_i    ( req_i.w_valid       ),
+-        .ready_o    ( w_b_fifo_ready      ),
+-        .data_o     ( /* NOT CONNECTED */ ),
+-        .valid_o    ( w_b_fifo_valid      ),
+-        .ready_i    ( req_i.b_ready       )
++        .clr_i    ( 1'b0                ),
++        .depth_o  ( /* NOT CONNECTED */ ),
++        .wdata_i  ( 1'b0                ),
++        .wvalid_i ( req_i.w_valid       ),
++        .wready_o ( w_b_fifo_ready      ),
++        .rdata_o  ( /* NOT CONNECTED */ ),
++        .rvalid_o ( w_b_fifo_valid      ),
++        .rready_i ( req_i.b_ready       ),
++        .full_o   ( /* NOT CONNECTED */ ),
++        .err_o    ( /* NOT CONNECTED */ )
+     );
+     assign rsp_o.b.resp  = axi_pkg::RESP_OKAY;
+     assign rsp_o.b_valid = w_b_fifo_valid;
+@@ -156,7 +157,7 @@ module axi_opt_lfsr #(
+ );
+ 
+     /// Number of bits required to hold the LFSR tab configuration
+-    localparam int unsigned LfsrIdxWidth = cf_math_pkg::idx_width(Width);
++    localparam int unsigned LfsrIdxWidth = prim_util_pkg::vbits(Width);
+     /// Maximum number of tabs
+     localparam int unsigned MaxNumTabs = 4;
+ 
+diff --git a/src/axi_lite_regs.sv b/src/axi_lite_regs.sv
+index 01ed2a0..9cdb6b5 100644
+--- a/src/axi_lite_regs.sv
++++ b/src/axi_lite_regs.sv
+@@ -141,7 +141,7 @@ module axi_lite_regs #(
+   // Reg byte:   B A 9 8   7 6 5 4   3 2 1 0
+   //           | chunk_2 | chunk_1 | chunk_0 |
+   localparam int unsigned AxiStrbWidth  = AxiDataWidth / 32'd8;
+-  localparam int unsigned NumChunks     = cf_math_pkg::ceil_div(RegNumBytes, AxiStrbWidth);
++  localparam int unsigned NumChunks     = prim_util_pkg::ceil_div(RegNumBytes, AxiStrbWidth);
+   localparam int unsigned ChunkIdxWidth = (NumChunks > 32'd1) ? $clog2(NumChunks) : 32'd1;
+   // Type of the index to identify a specific register chunk.
+   typedef logic [ChunkIdxWidth-1:0] chunk_idx_t;
+diff --git a/src/axi_mux.sv b/src/axi_mux.sv
+index da17e2b..aaba410 100644
+--- a/src/axi_mux.sv
++++ b/src/axi_mux.sv
+@@ -21,10 +21,6 @@
+ // Responses are switched based on these bits. For example, with 4 slave ports
+ // a response with ID `6'b100110` will be forwarded to slave port 2 (`2'b10`).
+ 
+-// register macros
+-`include "common_cells/assertions.svh"
+-`include "common_cells/registers.svh"
+-
+ module axi_mux #(
+   // AXI parameter and channel types
+   parameter int unsigned SlvAxiIDWidth = 32'd0, // AXI ID width, slave ports
+diff --git a/src/axi_rw_join.sv b/src/axi_rw_join.sv
+index 6b7191b..43ddb26 100644
+--- a/src/axi_rw_join.sv
++++ b/src/axi_rw_join.sv
+@@ -13,7 +13,6 @@
+ // - Tobias Senti <tsenti@ethz.ch>
+ 
+ `include "axi/assign.svh"
+-`include "common_cells/assertions.svh"
+ 
+ /// Joins a read and a write slave into one single read / write master
+ ///
+diff --git a/src/axi_rw_split.sv b/src/axi_rw_split.sv
+index 5301d03..9f7a2dc 100644
+--- a/src/axi_rw_split.sv
++++ b/src/axi_rw_split.sv
+@@ -13,7 +13,6 @@
+ // - Tobias Senti <tsenti@ethz.ch>
+ 
+ `include "axi/assign.svh"
+-`include "common_cells/assertions.svh"
+ 
+ /// Splits a single read / write slave into one read and one write master
+ ///
+diff --git a/src/axi_throttle.sv b/src/axi_throttle.sv
+index 3e7973a..8d4ba8f 100644
+--- a/src/axi_throttle.sv
++++ b/src/axi_throttle.sv
+@@ -19,9 +19,9 @@ module axi_throttle #(
+     /// AXI4+ATOP response type
+     parameter type axi_rsp_t = logic,
+     /// The width of the write credit counter (*DO NOT OVERWRITE*)
+-    parameter int unsigned WCntWidth = cf_math_pkg::idx_width(MaxNumAwPending),
++    parameter int unsigned WCntWidth = prim_util_pkg::vbits(MaxNumAwPending),
+     /// The width of the read credit counter (*DO NOT OVERWRITE*)
+-    parameter int unsigned RCntWidth = cf_math_pkg::idx_width(MaxNumArPending),
++    parameter int unsigned RCntWidth = prim_util_pkg::vbits(MaxNumArPending),
+     /// The type of the write credit counter (*DO NOT OVERWRITE*)
+     parameter type w_credit_t = logic [WCntWidth-1:0],
+     /// The type of the read credit counter (*DO NOT OVERWRITE*)
+diff --git a/src/axi_to_detailed_mem.sv b/src/axi_to_detailed_mem.sv
+index 641b0b4..5b3d4c6 100644
+--- a/src/axi_to_detailed_mem.sv
++++ b/src/axi_to_detailed_mem.sv
+@@ -335,40 +335,42 @@ module axi_to_detailed_mem #(
+   assign sel_b = meta.write & meta.last;
+   assign sel_r = ~meta.write | meta.atop[5];
+ 
+-  stream_fifo #(
+-    .FALL_THROUGH ( 1'b1             ),
+-    .DEPTH        ( 32'd1 + BufDepth ),
+-    .T            ( logic[1:0]       )
++  prim_fifo_sync #(
++    .Pass  ( 1'b1             ),
++    .Depth ( 32'd1 + BufDepth ),
++    .Width ( 2                )
+   ) i_sel_buf (
+     .clk_i,
+     .rst_ni,
+-    .flush_i    ( 1'b0                    ),
+-    .testmode_i ( 1'b0                    ),
+-    .data_i     ({sel_b,        sel_r    }),
+-    .valid_i    ( sel_valid               ),
+-    .ready_o    ( sel_ready               ),
+-    .data_o     ({sel_buf_b,    sel_buf_r}),
+-    .valid_o    ( sel_buf_valid           ),
+-    .ready_i    ( sel_buf_ready           ),
+-    .usage_o    ( /* unused */            )
++    .clr_i    ( 1'b0                    ),
++    .wdata_i  ({sel_b,        sel_r    }),
++    .wvalid_i ( sel_valid               ),
++    .wready_o ( sel_ready               ),
++    .rdata_o  ({sel_buf_b,    sel_buf_r}),
++    .rvalid_o ( sel_buf_valid           ),
++    .rready_i ( sel_buf_ready           ),
++    .depth_o  ( /* unused */            ),
++    .full_o   ( /* unused */            ),
++    .err_o    ( /* unused */            )
+   );
+ 
+-  stream_fifo #(
+-    .FALL_THROUGH ( 1'b1             ),
+-    .DEPTH        ( 32'd1 + BufDepth ),
+-    .T            ( meta_t           )
++  prim_fifo_sync #(
++    .Pass  ( 1'b1             ),
++    .Depth ( 32'd1 + BufDepth ),
++    .Width ( $bits(meta_t)    )
+   ) i_meta_buf (
+     .clk_i,
+     .rst_ni,
+-    .flush_i    ( 1'b0           ),
+-    .testmode_i ( 1'b0           ),
+-    .data_i     ( meta           ),
+-    .valid_i    ( meta_valid     ),
+-    .ready_o    ( meta_ready     ),
+-    .data_o     ( meta_buf       ),
+-    .valid_o    ( meta_buf_valid ),
+-    .ready_i    ( meta_buf_ready ),
+-    .usage_o    ( /* unused */   )
++    .clr_i    ( 1'b0           ),
++    .wdata_i  ( meta           ),
++    .wvalid_i ( meta_valid     ),
++    .wready_o ( meta_ready     ),
++    .rdata_o  ( meta_buf       ),
++    .rvalid_o ( meta_buf_valid ),
++    .rready_i ( meta_buf_ready ),
++    .depth_o  ( /* unused */   ),
++    .full_o   ( /* unused */   ),
++    .err_o    ( /* unused */   )
+   );
+ 
+   // Assemble the actual memory request from meta information and write data.
+@@ -869,23 +871,23 @@ module mem_stream_to_banks_detailed #(
+     assign bank_req[i].strb  = strb_i[i*BytesPerBank+:BytesPerBank];
+     assign bank_req[i].wuser = wuser_i;
+     assign bank_req[i].we    = we_i;
+-    stream_fifo #(
+-      .FALL_THROUGH ( 1'b1         ),
+-      .DATA_WIDTH   ( $bits(req_t) ),
+-      .DEPTH        ( OutFifoDepth ),
+-      .T            ( req_t        )
++    prim_fifo_sync #(
++      .Pass  ( 1'b1         ),
++      .Width ( $bits(req_t) ),
++      .Depth ( OutFifoDepth ),
+     ) i_ft_reg (
+       .clk_i,
+       .rst_ni,
+-      .flush_i    ( 1'b0          ),
+-      .testmode_i ( 1'b0          ),
+-      .usage_o    (),
+-      .data_i     ( bank_req[i]   ),
+-      .valid_i    ( req_valid     ),
+-      .ready_o    ( req_ready[i]  ),
+-      .data_o     ( bank_oup[i]   ),
+-      .valid_o    ( bank_req_internal[i] ),
+-      .ready_i    ( bank_gnt_internal[i] )
++      .clr_i    ( 1'b0          ),
++      .depth_o  ( ),
++      .wdata_i  ( bank_req[i]   ),
++      .wvalid_i ( req_valid     ),
++      .wready_o ( req_ready[i]  ),
++      .rdata_o  ( bank_oup[i]   ),
++      .rvalid_o ( bank_req_internal[i] ),
++      .rready_i ( bank_gnt_internal[i] ),
++      .full_o   ( ),
++      .err_o    ( )
+     );
+     assign bank_addr_o[i]  = bank_oup[i].addr;
+     assign bank_wdata_o[i] = bank_oup[i].wdata;
+@@ -942,22 +944,23 @@ module mem_stream_to_banks_detailed #(
+ 
+   // Handle responses.
+   for (genvar i = 0; unsigned'(i) < NumBanks; i++) begin : gen_resp_regs
+-    stream_fifo #(
+-      .FALL_THROUGH ( 1'b1              ),
+-      .DATA_WIDTH   ( $bits(oup_data_t) + $bits(oup_ruser_t) ),
+-      .DEPTH        ( MaxTrans         )
++    prim_fifo_sync #(
++      .Pass  ( 1'b1                                   ),
++      .Width ( $bits(oup_data_t) + $bits(oup_ruser_t) ),
++      .Depth ( MaxTrans                               )
+     ) i_ft_reg (
+       .clk_i,
+       .rst_ni,
+-      .flush_i    ( 1'b0                                              ),
+-      .testmode_i ( 1'b0                                              ),
+-      .usage_o    (),
+-      .data_i     ( {bank_rdata_i[i], bank_ruser_i[i]}                ),
+-      .valid_i    ( bank_rvalid_i[i]                                  ),
+-      .ready_o    ( resp_ready[i]                                     ),
+-      .data_o     ( {rdata_o[i*BitsPerBank+:BitsPerBank], ruser_o[i]} ),
+-      .valid_o    ( resp_valid[i]                                     ),
+-      .ready_i    ( rvalid_o & !dead_response[i] & rready_i           )
++      .clr_i    ( 1'b0                                              ),
++      .depth_o  (                                                   ),
++      .wdata_i  ( {bank_rdata_i[i], bank_ruser_i[i]}                ),
++      .wvalid_i ( bank_rvalid_i[i]                                  ),
++      .wready_o ( resp_ready[i]                                     ),
++      .rdata_o  ( {rdata_o[i*BitsPerBank+:BitsPerBank], ruser_o[i]} ),
++      .rvalid_o ( resp_valid[i]                                     ),
++      .rready_i ( rvalid_o & !dead_response[i] & rready_i           ),
++      .full_o   (                                                   ),
++      .err_o    (                                                   )
+     );
+   end
+   assign rvalid_o = &(resp_valid | dead_response);
+diff --git a/src/axi_to_mem_banked.sv b/src/axi_to_mem_banked.sv
+index 548339f..4350a28 100644
+--- a/src/axi_to_mem_banked.sv
++++ b/src/axi_to_mem_banked.sv
+@@ -101,7 +101,7 @@ module axi_to_mem_banked #(
+   localparam int unsigned BankSelOffset = $clog2(MemDataWidth / 32'd8);
+   /// Selection signal width of the xbar. This is the reason for power of two banks, otherwise
+   /// There are holes in the address mapping.
+-  localparam int unsigned BankSelWidth  = cf_math_pkg::idx_width(MemNumBanks);
++  localparam int unsigned BankSelWidth  = prim_util_pkg::vbits(MemNumBanks);
+   typedef logic [BankSelWidth-1:0] xbar_sel_t;
+ 
+   // Typedef for defining the channels
+diff --git a/src/axi_xbar.sv b/src/axi_xbar.sv
+index f41e9a6..019e983 100644
+--- a/src/axi_xbar.sv
++++ b/src/axi_xbar.sv
+@@ -16,7 +16,6 @@
+ /// axi_xbar: Fully-connected AXI4+ATOP crossbar with an arbitrary number of slave and master ports.
+ /// See `doc/axi_xbar.md` for the documentation, including the definition of parameters and ports.
+ module axi_xbar
+-import cf_math_pkg::idx_width;
+ #(
+   /// Configuration struct for the crossbar see `axi_pkg` for fields and definitions.
+   parameter axi_pkg::xbar_cfg_t Cfg                                   = '0,
+@@ -172,7 +171,6 @@ endmodule
+ `include "axi/typedef.svh"
+ 
+ module axi_xbar_intf
+-import cf_math_pkg::idx_width;
+ #(
+   parameter int unsigned AXI_USER_WIDTH =  0,
+   parameter axi_pkg::xbar_cfg_t Cfg     = '0,
+diff --git a/src/axi_xbar_unmuxed.sv b/src/axi_xbar_unmuxed.sv
+index 3d70654..21d8b5b 100644
+--- a/src/axi_xbar_unmuxed.sv
++++ b/src/axi_xbar_unmuxed.sv
+@@ -16,7 +16,6 @@
+ /// axi_xbar: Fully-connected AXI4+ATOP crossbar with an arbitrary number of slave and master ports.
+ /// See `doc/axi_xbar.md` for the documentation, including the definition of parameters and ports.
+ module axi_xbar_unmuxed
+-import cf_math_pkg::idx_width;
+ #(
+   /// Configuration struct for the crossbar see `axi_pkg` for fields and definitions.
+   parameter axi_pkg::xbar_cfg_t Cfg                                   = '0,
+@@ -273,7 +272,7 @@ endmodule
+ `include "axi/typedef.svh"
+ 
+ module axi_xbar_unmuxed_intf
+-import cf_math_pkg::idx_width;
++import prim_util_pkg::vbits;
+ #(
+   parameter int unsigned AXI_USER_WIDTH =  0,
+   parameter axi_pkg::xbar_cfg_t Cfg     = '0,
+@@ -288,7 +287,7 @@ import cf_math_pkg::idx_width;
+   AXI_BUS.Master                                                    mst_ports [Cfg.NoMstPorts-1:0][Cfg.NoSlvPorts-1:0],
+   input  rule_t [Cfg.NoAddrRules-1:0]                               addr_map_i,
+   input  logic  [Cfg.NoSlvPorts-1:0]                                en_default_mst_port_i,
+-  input  logic  [Cfg.NoSlvPorts-1:0][idx_width(Cfg.NoMstPorts)-1:0] default_mst_port_i
++  input  logic  [Cfg.NoSlvPorts-1:0][vbits(Cfg.NoMstPorts)-1:0] default_mst_port_i
+ );
+ 
+   typedef logic [Cfg.AxiIdWidthSlvPorts -1:0] id_t;
+diff --git a/src/axi_xp.sv b/src/axi_xp.sv
+index 5ccbfb9..43076c5 100644
+--- a/src/axi_xp.sv
++++ b/src/axi_xp.sv
+@@ -171,7 +171,6 @@ endmodule
+ `include "axi/typedef.svh"
+ 
+ module axi_xp_intf
+-import cf_math_pkg::idx_width;
+ #(
+   parameter bit  ATOPs = 1'b1,
+   parameter axi_pkg::xbar_cfg_t Cfg = '0,

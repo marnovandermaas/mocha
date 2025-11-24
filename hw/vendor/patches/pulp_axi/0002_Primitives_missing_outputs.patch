@@ -1,0 +1,58 @@
+diff --git a/src/axi_burst_splitter_gran.sv b/src/axi_burst_splitter_gran.sv
+index 1edf839..063f342 100644
+--- a/src/axi_burst_splitter_gran.sv
++++ b/src/axi_burst_splitter_gran.sv
+@@ -696,7 +696,9 @@ module axi_burst_splitter_gran_counters #(
+     .oup_req_i        ( cnt_req_i     ),
+     .oup_data_o       ( cnt_r_idx     ),
+     .oup_data_valid_o ( idq_oup_valid ),
+-    .oup_gnt_o        ( idq_oup_gnt   )
++    .oup_gnt_o        ( idq_oup_gnt   ),
++    .full_o           (               ),
++    .empty_o          (               )
+   );
+   assign idq_inp_req = alloc_req   & alloc_gnt;
+   assign alloc_gnt   = idq_inp_gnt & |(cnt_free);
+diff --git a/src/axi_burst_unwrap.sv b/src/axi_burst_unwrap.sv
+index 0f0871c..e513e55 100644
+--- a/src/axi_burst_unwrap.sv
++++ b/src/axi_burst_unwrap.sv
+@@ -614,7 +614,9 @@ module axi_burst_counters #(
+     .oup_req_i        ( cnt_req_i     ),
+     .oup_data_o       ( cnt_r_idx     ),
+     .oup_data_valid_o ( idq_oup_valid ),
+-    .oup_gnt_o        ( idq_oup_gnt   )
++    .oup_gnt_o        ( idq_oup_gnt   ),
++    .full_o           (               ),
++    .empty_o          (               )
+   );
+   assign idq_inp_req = alloc_req_i & alloc_gnt_o;
+   assign alloc_gnt_o = idq_inp_gnt & |(cnt_free);
+diff --git a/src/axi_dw_downsizer.sv b/src/axi_dw_downsizer.sv
+index 7953ae7..6066375 100644
+--- a/src/axi_dw_downsizer.sv
++++ b/src/axi_dw_downsizer.sv
+@@ -330,7 +330,9 @@ module axi_dw_downsizer #(
+     .exists_mask_i   ('0              ),
+     .exists_req_i    ('0              ),
+     .exists_o        (/* Unused  */   ),
+-    .exists_gnt_o    (/* Unused  */   )
++    .exists_gnt_o    (/* Unused  */   ),
++    .full_o          (/* Unused  */   ),
++    .empty_o         (/* Unused  */   )
+   );
+ 
+   for (genvar t = 0; unsigned'(t) < AxiMaxReads; t++) begin: gen_read_downsizer
+diff --git a/src/axi_to_detailed_mem.sv b/src/axi_to_detailed_mem.sv
+index 5b3d4c6..8b0e69a 100644
+--- a/src/axi_to_detailed_mem.sv
++++ b/src/axi_to_detailed_mem.sv
+@@ -874,7 +874,7 @@ module mem_stream_to_banks_detailed #(
+     prim_fifo_sync #(
+       .Pass  ( 1'b1         ),
+       .Width ( $bits(req_t) ),
+-      .Depth ( OutFifoDepth ),
++      .Depth ( OutFifoDepth )
+     ) i_ft_reg (
+       .clk_i,
+       .rst_ni,
