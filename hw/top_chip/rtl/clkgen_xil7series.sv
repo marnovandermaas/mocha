@@ -15,9 +15,9 @@ module clkgen_xil7series (
 
   // Input buffering
   IBUFDS clk_200m_ibufds_inst(
-    .I(clk_200m_pi),
+    .I (clk_200m_pi),
     .IB(clk_200m_ni),
-    .O(clk_200m_buf)
+    .O (clk_200m_buf)
   );
 
   // PLL
