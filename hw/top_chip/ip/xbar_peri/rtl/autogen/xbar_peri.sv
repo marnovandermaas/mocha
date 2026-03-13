@@ -7,8 +7,8 @@
 //
 // Interconnect
 // axi_xbar
-//   -> asf_10
-//     -> s1n_11
+//   -> asf_11
+//     -> s1n_12
 //       -> gpio
 //       -> clkmgr
 //       -> rstmgr
@@ -17,6 +17,7 @@
 //       -> i2c
 //       -> spi_device
 //       -> timer
+//       -> spi_host
 //       -> plic
 
 module xbar_peri (
@@ -46,6 +47,8 @@ module xbar_peri (
   input  tlul_pkg::tl_d2h_t tl_spi_device_i,
   output tlul_pkg::tl_h2d_t tl_timer_o,
   input  tlul_pkg::tl_d2h_t tl_timer_i,
+  output tlul_pkg::tl_h2d_t tl_spi_host_o,
+  input  tlul_pkg::tl_d2h_t tl_spi_host_i,
   output tlul_pkg::tl_h2d_t tl_plic_o,
   input  tlul_pkg::tl_d2h_t tl_plic_i,
 
@@ -60,94 +63,101 @@ module xbar_peri (
   logic unused_scanmode;
   assign unused_scanmode = ^scanmode_i;
 
-  tl_h2d_t tl_asf_10_us_h2d ;
-  tl_d2h_t tl_asf_10_us_d2h ;
-  tl_h2d_t tl_asf_10_ds_h2d ;
-  tl_d2h_t tl_asf_10_ds_d2h ;
+  tl_h2d_t tl_asf_11_us_h2d ;
+  tl_d2h_t tl_asf_11_us_d2h ;
+  tl_h2d_t tl_asf_11_ds_h2d ;
+  tl_d2h_t tl_asf_11_ds_d2h ;
 
-  tl_h2d_t tl_s1n_11_us_h2d ;
-  tl_d2h_t tl_s1n_11_us_d2h ;
+  tl_h2d_t tl_s1n_12_us_h2d ;
+  tl_d2h_t tl_s1n_12_us_d2h ;
 
 
-  tl_h2d_t tl_s1n_11_ds_h2d [9];
-  tl_d2h_t tl_s1n_11_ds_d2h [9];
+  tl_h2d_t tl_s1n_12_ds_h2d [10];
+  tl_d2h_t tl_s1n_12_ds_d2h [10];
 
   // Create steering signal
-  logic [3:0] dev_sel_s1n_11;
+  logic [3:0] dev_sel_s1n_12;
 
 
 
-  assign tl_gpio_o = tl_s1n_11_ds_h2d[0];
-  assign tl_s1n_11_ds_d2h[0] = tl_gpio_i;
+  assign tl_gpio_o = tl_s1n_12_ds_h2d[0];
+  assign tl_s1n_12_ds_d2h[0] = tl_gpio_i;
 
-  assign tl_clkmgr_o = tl_s1n_11_ds_h2d[1];
-  assign tl_s1n_11_ds_d2h[1] = tl_clkmgr_i;
+  assign tl_clkmgr_o = tl_s1n_12_ds_h2d[1];
+  assign tl_s1n_12_ds_d2h[1] = tl_clkmgr_i;
 
-  assign tl_rstmgr_o = tl_s1n_11_ds_h2d[2];
-  assign tl_s1n_11_ds_d2h[2] = tl_rstmgr_i;
+  assign tl_rstmgr_o = tl_s1n_12_ds_h2d[2];
+  assign tl_s1n_12_ds_d2h[2] = tl_rstmgr_i;
 
-  assign tl_pwrmgr_o = tl_s1n_11_ds_h2d[3];
-  assign tl_s1n_11_ds_d2h[3] = tl_pwrmgr_i;
+  assign tl_pwrmgr_o = tl_s1n_12_ds_h2d[3];
+  assign tl_s1n_12_ds_d2h[3] = tl_pwrmgr_i;
 
-  assign tl_uart_o = tl_s1n_11_ds_h2d[4];
-  assign tl_s1n_11_ds_d2h[4] = tl_uart_i;
+  assign tl_uart_o = tl_s1n_12_ds_h2d[4];
+  assign tl_s1n_12_ds_d2h[4] = tl_uart_i;
 
-  assign tl_i2c_o = tl_s1n_11_ds_h2d[5];
-  assign tl_s1n_11_ds_d2h[5] = tl_i2c_i;
+  assign tl_i2c_o = tl_s1n_12_ds_h2d[5];
+  assign tl_s1n_12_ds_d2h[5] = tl_i2c_i;
 
-  assign tl_spi_device_o = tl_s1n_11_ds_h2d[6];
-  assign tl_s1n_11_ds_d2h[6] = tl_spi_device_i;
+  assign tl_spi_device_o = tl_s1n_12_ds_h2d[6];
+  assign tl_s1n_12_ds_d2h[6] = tl_spi_device_i;
 
-  assign tl_timer_o = tl_s1n_11_ds_h2d[7];
-  assign tl_s1n_11_ds_d2h[7] = tl_timer_i;
+  assign tl_timer_o = tl_s1n_12_ds_h2d[7];
+  assign tl_s1n_12_ds_d2h[7] = tl_timer_i;
 
-  assign tl_plic_o = tl_s1n_11_ds_h2d[8];
-  assign tl_s1n_11_ds_d2h[8] = tl_plic_i;
+  assign tl_spi_host_o = tl_s1n_12_ds_h2d[8];
+  assign tl_s1n_12_ds_d2h[8] = tl_spi_host_i;
 
-  assign tl_asf_10_us_h2d = tl_axi_xbar_i;
-  assign tl_axi_xbar_o = tl_asf_10_us_d2h;
+  assign tl_plic_o = tl_s1n_12_ds_h2d[9];
+  assign tl_s1n_12_ds_d2h[9] = tl_plic_i;
 
-  assign tl_s1n_11_us_h2d = tl_asf_10_ds_h2d;
-  assign tl_asf_10_ds_d2h = tl_s1n_11_us_d2h;
+  assign tl_asf_11_us_h2d = tl_axi_xbar_i;
+  assign tl_axi_xbar_o = tl_asf_11_us_d2h;
+
+  assign tl_s1n_12_us_h2d = tl_asf_11_ds_h2d;
+  assign tl_asf_11_ds_d2h = tl_s1n_12_us_d2h;
 
   always_comb begin
     // default steering to generate error response if address is not within the range
-    dev_sel_s1n_11 = 4'd9;
-    if ((tl_s1n_11_us_h2d.a_address &
+    dev_sel_s1n_12 = 4'd10;
+    if ((tl_s1n_12_us_h2d.a_address &
          ~(ADDR_MASK_GPIO)) == ADDR_SPACE_GPIO) begin
-      dev_sel_s1n_11 = 4'd0;
+      dev_sel_s1n_12 = 4'd0;
 
-    end else if ((tl_s1n_11_us_h2d.a_address &
+    end else if ((tl_s1n_12_us_h2d.a_address &
                   ~(ADDR_MASK_CLKMGR)) == ADDR_SPACE_CLKMGR) begin
-      dev_sel_s1n_11 = 4'd1;
+      dev_sel_s1n_12 = 4'd1;
 
-    end else if ((tl_s1n_11_us_h2d.a_address &
+    end else if ((tl_s1n_12_us_h2d.a_address &
                   ~(ADDR_MASK_RSTMGR)) == ADDR_SPACE_RSTMGR) begin
-      dev_sel_s1n_11 = 4'd2;
+      dev_sel_s1n_12 = 4'd2;
 
-    end else if ((tl_s1n_11_us_h2d.a_address &
+    end else if ((tl_s1n_12_us_h2d.a_address &
                   ~(ADDR_MASK_PWRMGR)) == ADDR_SPACE_PWRMGR) begin
-      dev_sel_s1n_11 = 4'd3;
+      dev_sel_s1n_12 = 4'd3;
 
-    end else if ((tl_s1n_11_us_h2d.a_address &
+    end else if ((tl_s1n_12_us_h2d.a_address &
                   ~(ADDR_MASK_UART)) == ADDR_SPACE_UART) begin
-      dev_sel_s1n_11 = 4'd4;
+      dev_sel_s1n_12 = 4'd4;
 
-    end else if ((tl_s1n_11_us_h2d.a_address &
+    end else if ((tl_s1n_12_us_h2d.a_address &
                   ~(ADDR_MASK_I2C)) == ADDR_SPACE_I2C) begin
-      dev_sel_s1n_11 = 4'd5;
+      dev_sel_s1n_12 = 4'd5;
 
-    end else if ((tl_s1n_11_us_h2d.a_address &
+    end else if ((tl_s1n_12_us_h2d.a_address &
                   ~(ADDR_MASK_SPI_DEVICE)) == ADDR_SPACE_SPI_DEVICE) begin
-      dev_sel_s1n_11 = 4'd6;
+      dev_sel_s1n_12 = 4'd6;
 
-    end else if ((tl_s1n_11_us_h2d.a_address &
+    end else if ((tl_s1n_12_us_h2d.a_address &
                   ~(ADDR_MASK_TIMER)) == ADDR_SPACE_TIMER) begin
-      dev_sel_s1n_11 = 4'd7;
+      dev_sel_s1n_12 = 4'd7;
 
-    end else if ((tl_s1n_11_us_h2d.a_address &
+    end else if ((tl_s1n_12_us_h2d.a_address &
+                  ~(ADDR_MASK_SPI_HOST)) == ADDR_SPACE_SPI_HOST) begin
+      dev_sel_s1n_12 = 4'd8;
+
+    end else if ((tl_s1n_12_us_h2d.a_address &
                   ~(ADDR_MASK_PLIC)) == ADDR_SPACE_PLIC) begin
-      dev_sel_s1n_11 = 4'd8;
+      dev_sel_s1n_12 = 4'd9;
 end
   end
 
@@ -156,30 +166,30 @@ end
   tlul_fifo_async #(
     .ReqDepth        (1),
     .RspDepth        (1)
-  ) u_asf_10 (
+  ) u_asf_11 (
     .clk_h_i      (clk_main_i),
     .rst_h_ni     (rst_main_ni),
     .clk_d_i      (clk_io_i),
     .rst_d_ni     (rst_io_ni),
-    .tl_h_i       (tl_asf_10_us_h2d),
-    .tl_h_o       (tl_asf_10_us_d2h),
-    .tl_d_o       (tl_asf_10_ds_h2d),
-    .tl_d_i       (tl_asf_10_ds_d2h)
+    .tl_h_i       (tl_asf_11_us_h2d),
+    .tl_h_o       (tl_asf_11_us_d2h),
+    .tl_d_o       (tl_asf_11_ds_h2d),
+    .tl_d_i       (tl_asf_11_ds_d2h)
   );
   tlul_socket_1n #(
     .HReqDepth (4'h0),
     .HRspDepth (4'h0),
-    .DReqDepth (36'h0),
-    .DRspDepth (36'h0),
-    .N         (9)
-  ) u_s1n_11 (
+    .DReqDepth (40'h0),
+    .DRspDepth (40'h0),
+    .N         (10)
+  ) u_s1n_12 (
     .clk_i        (clk_io_i),
     .rst_ni       (rst_io_ni),
-    .tl_h_i       (tl_s1n_11_us_h2d),
-    .tl_h_o       (tl_s1n_11_us_d2h),
-    .tl_d_o       (tl_s1n_11_ds_h2d),
-    .tl_d_i       (tl_s1n_11_ds_d2h),
-    .dev_select_i (dev_sel_s1n_11)
+    .tl_h_i       (tl_s1n_12_us_h2d),
+    .tl_h_o       (tl_s1n_12_us_d2h),
+    .tl_d_o       (tl_s1n_12_ds_h2d),
+    .tl_d_i       (tl_s1n_12_ds_d2h),
+    .dev_select_i (dev_sel_s1n_12)
   );
 
 endmodule

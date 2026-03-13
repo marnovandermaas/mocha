@@ -70,7 +70,15 @@ module top_chip_verilator (input logic clk_i, rst_ni);
     .spi_device_tpm_csb_i ('0),
 
     .dram_req_o  (dram_req),
-    .dram_resp_i (dram_resp)
+    .dram_resp_i (dram_resp),
+
+    .spi_host_sck_o    ( ),
+    .spi_host_sck_en_o ( ),
+    .spi_host_csb_o    ( ),
+    .spi_host_csb_en_o ( ),
+    .spi_host_sd_o     ( ),
+    .spi_host_sd_en_o  ( ),
+    .spi_host_sd_i     (4'h0)
   );
 
   // Virtual GPIO
