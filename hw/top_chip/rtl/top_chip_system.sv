@@ -7,7 +7,8 @@
 `include "register_interface/typedef.svh"
 
 module top_chip_system #(
-  SramInitFile = ""
+  parameter int unsigned SPIHostNumCS = 1,
+  parameter              SramInitFile = ""
 ) (
   // Clock and reset.
   input  logic clk_i,
@@ -45,6 +46,15 @@ module top_chip_system #(
   input  logic [3:0] spi_device_sd_i,
   input  logic       spi_device_tpm_csb_i,
 
+  // SPI host receive and transmit.
+  output logic                    spi_host_sck_o,
+  output logic                    spi_host_sck_en_o,
+  output logic [SPIHostNumCS-1:0] spi_host_csb_o,
+  output logic [SPIHostNumCS-1:0] spi_host_csb_en_o,
+  output logic [3:0]              spi_host_sd_o,
+  output logic [3:0]              spi_host_sd_en_o,
+  input  logic [3:0]              spi_host_sd_i,
+
   // DRAM AXI interface.
   output top_pkg::axi_dram_req_t  dram_req_o,
   input  top_pkg::axi_dram_resp_t dram_resp_i
@@ -58,6 +68,7 @@ module top_chip_system #(
   localparam int unsigned UartIrqs      = 9;
   localparam int unsigned I2cIrqs       = 15;
   localparam int unsigned SPIDeviceIrqs = 8;
+  localparam int unsigned SPIHostIrqs   = 2;
 
   // CVA6 configuration
   function automatic config_pkg::cva6_cfg_t build_cva6_config(config_pkg::cva6_user_cfg_t CVA6UserCfg);
@@ -125,6 +136,8 @@ module top_chip_system #(
   tlul_pkg::tl_d2h_t tl_plic_d2h;
   tlul_pkg::tl_h2d_t tl_spi_device_h2d;
   tlul_pkg::tl_d2h_t tl_spi_device_d2h;
+  tlul_pkg::tl_h2d_t tl_spi_host_h2d;
+  tlul_pkg::tl_d2h_t tl_spi_host_d2h;
 
   // 64-bit memory format signals
   logic                                 mem64_tl_xbar_req;
@@ -164,6 +177,7 @@ module top_chip_system #(
   logic [UartIrqs-1:0]      uart_interrupts;
   logic [I2cIrqs-1:0]       i2c_interrupts;
   logic [SPIDeviceIrqs-1:0] spi_device_interrupts;
+  logic [SPIHostIrqs-1:0]   spi_host_interrupts;
 
   // Interrupt lines to PLIC
   // Each IP block has a single interrupt line to the PLIC and software shall consult the intr_state
@@ -173,6 +187,7 @@ module top_chip_system #(
   logic uart_irq;
   logic i2c_irq;
   logic spi_device_irq;
+  logic spi_host_irq;
   logic pwrmgr_wakeup_irq;
 
   always_comb begin
@@ -181,19 +196,21 @@ module top_chip_system #(
     uart_irq = |uart_interrupts;
     i2c_irq = |i2c_interrupts;
     spi_device_irq = |spi_device_interrupts;
+    spi_host_irq = |spi_host_interrupts;
   end
 
   // Interrupt vector
   logic [31:0] intr_vector;
 
-  assign intr_vector[31 :12] = '0;      // Reserved for future use.
+  assign intr_vector[31 :12] = '0; // Reserved for future use.
   assign intr_vector[11    ] = mailbox_main_irq;
   assign intr_vector[10    ] = pwrmgr_wakeup_irq;
   assign intr_vector[ 9    ] = gpio_irq;
   assign intr_vector[ 8    ] = uart_irq;
   assign intr_vector[ 7    ] = spi_device_irq;
   assign intr_vector[ 6    ] = i2c_irq;
-  assign intr_vector[ 5 : 0] = '0;      // Reserved for future use.
+  assign intr_vector[ 5    ] = spi_host_irq;
+  assign intr_vector[ 4 : 0] = '0; // Reserved for future use.
 
   // Interrupts to the CVA6
   logic       intr_timer;
@@ -483,6 +500,8 @@ module top_chip_system #(
     .tl_spi_device_i (tl_spi_device_d2h),
     .tl_timer_o      (tl_timer_h2d),
     .tl_timer_i      (tl_timer_d2h),
+    .tl_spi_host_o   (tl_spi_host_h2d),
+    .tl_spi_host_i   (tl_spi_host_d2h),
     .tl_plic_o       (tl_plic_h2d),
     .tl_plic_i       (tl_plic_d2h),
 
@@ -690,6 +709,43 @@ module top_chip_system #(
     .scan_clk_i  ('0),
     .scan_rst_ni ('1),
     .scanmode_i  (prim_mubi_pkg::MuBi4False)
+  );
+
+  // Instantiate SPI host to talk to external flash or SD card.
+  spi_host #(
+    .NumCS ( SPIHostNumCS )
+  ) u_spi_host (
+    // Clock and reset.
+    .clk_i  (clkmgr_clocks.clk_io_infra),
+    .rst_ni (rstmgr_resets.rst_io_n[rstmgr_pkg::Domain0Sel]),
+
+    // TileLink bus connections.
+    .tl_i (tl_spi_host_h2d),
+    .tl_o (tl_spi_host_d2h),
+
+    // Alerts and RACL.
+    .alert_rx_i      (prim_alert_pkg::ALERT_RX_DEFAULT),
+    .alert_tx_o      ( ),
+    .racl_policies_i (top_racl_pkg::RACL_POLICY_VEC_DEFAULT),
+    .racl_error_o    ( ),
+
+    // SPI top-level signals.
+    .cio_sck_o    (spi_host_sck_o),
+    .cio_sck_en_o (spi_host_sck_en_o),
+    .cio_csb_o    (spi_host_csb_o),
+    .cio_csb_en_o (spi_host_csb_en_o),
+    .cio_sd_o     (spi_host_sd_o),
+    .cio_sd_en_o  (spi_host_sd_en_o),
+    .cio_sd_i     (spi_host_sd_i),
+
+    // Passthrough and interrupt interfaces.
+    .passthrough_i  (spi_device_pkg::PASSTHROUGH_REQ_DEFAULT),
+    .passthrough_o  ( ),
+    .lsio_trigger_o ( ),
+
+    // Interrupts.
+    .intr_error_o     (spi_host_interrupts[0]),
+    .intr_spi_event_o (spi_host_interrupts[1])
   );
 
   ///////////////

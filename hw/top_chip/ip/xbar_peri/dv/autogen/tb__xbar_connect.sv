@@ -28,4 +28,5 @@ initial force dut.rst_io_ni = rst_n;
 `CONNECT_TL_DEVICE_IF(i2c, dut, clk_io_i, rst_n)
 `CONNECT_TL_DEVICE_IF(spi_device, dut, clk_io_i, rst_n)
 `CONNECT_TL_DEVICE_IF(timer, dut, clk_io_i, rst_n)
+`CONNECT_TL_DEVICE_IF(spi_host, dut, clk_io_i, rst_n)
 `CONNECT_TL_DEVICE_IF(plic, dut, clk_io_i, rst_n)

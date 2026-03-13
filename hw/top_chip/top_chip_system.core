@@ -12,6 +12,7 @@ filesets:
       - lowrisc:ip:uart
       - lowrisc:ip:rv_timer
       - lowrisc:ip:spi_device
+      - lowrisc:ip:spi_host
       - lowrisc:ip:xbar_peri
       - lowrisc:mocha_ip:clkmgr
       - lowrisc:mocha_ip:gpio

@@ -31,6 +31,9 @@ tl_device_t xbar_devices[$] = '{
     '{"timer", '{
         '{32'h44000000, 32'h4400ffff}
     }},
+    '{"spi_host", '{
+        '{32'h45000000, 32'h4500ffff}
+    }},
     '{"plic", '{
         '{32'h48000000, 32'h4bffffff}
 }}};
@@ -46,5 +49,6 @@ tl_host_t xbar_hosts[$] = '{
         "i2c",
         "spi_device",
         "timer",
+        "spi_host",
         "plic"}}
 };
