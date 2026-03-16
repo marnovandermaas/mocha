@@ -14,6 +14,7 @@ filesets:
 
   files_verilator:
     depend:
+      - lowrisc:sonata:spidevicedpi
       - lowrisc:dv_verilator:memutil_verilator
       - lowrisc:dv_verilator:simutil_verilator
       - lowrisc:dv_dpi_c:gpiodpi:0.1

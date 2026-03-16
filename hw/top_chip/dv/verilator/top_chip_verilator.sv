@@ -38,6 +38,15 @@ module top_chip_verilator (input logic clk_i, rst_ni);
   top_pkg::axi_dram_req_t  dram_req;
   top_pkg::axi_dram_resp_t dram_resp;
 
+  // microSD card interface.
+  logic microsd_clk;  // SPI mode: SCLK
+  logic microsd_clk_en;
+  logic microsd_dat0; // SPI mode: CIPO
+  logic microsd_dat3; // SPI mode: CS_N
+  logic microsd_dat3_en;
+  logic [3:0] microsd_copi;  // SPI mode: COPI
+  logic [3:0] microsd_copi_en;
+
   // CHERI Mocha top
   top_chip_system #(
   ) u_top_chip_system (
@@ -72,13 +81,13 @@ module top_chip_verilator (input logic clk_i, rst_ni);
     .dram_req_o  (dram_req),
     .dram_resp_i (dram_resp),
 
-    .spi_host_sck_o    ( ),
-    .spi_host_sck_en_o ( ),
-    .spi_host_csb_o    ( ),
-    .spi_host_csb_en_o ( ),
-    .spi_host_sd_o     ( ),
-    .spi_host_sd_en_o  ( ),
-    .spi_host_sd_i     (4'h0)
+    .spi_host_sck_o    (microsd_clk),
+    .spi_host_sck_en_o (microsd_clk_en),
+    .spi_host_csb_o    (microsd_dat3),
+    .spi_host_csb_en_o (microsd_dat3_en),
+    .spi_host_sd_o     (microsd_copi),
+    .spi_host_sd_en_o  (microsd_copi_en),
+    .spi_host_sd_i     ({3'h0, microsd_dat0})
   );
 
   // Virtual GPIO
@@ -133,6 +142,25 @@ module top_chip_verilator (input logic clk_i, rst_ni);
     .spi_device_sdi_o   (spi_device_sdi),
     .spi_device_sdo_i   (qspi_device_sdo[1]),   // SPI MISO = QSPI DQ1
     .spi_device_sdo_en_i(qspi_device_sdo_en[1]) // SPI MISO = QSPI DQ1
+  );
+
+  // Virtual SPI device mimicking a microSD card.
+  spidevicedpi #(
+    .ID       ("microsd"),
+    .NDevices (1),
+    .DataW    (1),
+    .OOB_InW  (1),
+    .OOB_OutW (1)
+  ) u_spidpi_microsd (
+    .rst_ni   (rst_ni),
+
+    .sck      (microsd_clk_en ? microsd_clk_en : 1'b0),
+    .cs       (microsd_dat3_en ? microsd_dat3 : 1'b0),
+    .copi     (microsd_copi_en[0] ? microsd_copi[0] : 1'b0),
+    .cipo     (microsd_dat0),
+
+    .oob_in   ( ),
+    .oob_out  ( )
   );
 
   `define DUT               u_top_chip_system
