@@ -197,8 +197,7 @@
         "spi_device_smoke_cheri",
         "gpio_smoke",
         "mailbox_smoke",
-        //TODO currently broken.
-        // "mailbox_smoke_cheri"
+        "mailbox_smoke_cheri",
       ]
     }
     {
