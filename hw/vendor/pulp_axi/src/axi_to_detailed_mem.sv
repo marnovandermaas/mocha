@@ -922,9 +922,9 @@ module mem_stream_to_banks_detailed #(
   assign req_valid = mem_req_valid & mem_req_ready;
   for (genvar i = 0; unsigned'(i) < NumBanks; i++) begin : gen_reqs
     assign bank_req[i].addr  = align_addr(addr_i) + 7'(i * BytesPerBank);
-    assign bank_req[i].wdata = wdata_i[i*BitsPerBank+:BitsPerBank];
-    assign bank_req[i].strb  = strb_i[i*BytesPerBank+:BytesPerBank];
-    assign bank_req[i].wuser = wuser_i;
+    assign bank_req[i].wdata = we_i ? wdata_i[i*BitsPerBank+:BitsPerBank] : '0;
+    assign bank_req[i].strb  = we_i ? strb_i[i*BytesPerBank+:BytesPerBank] : '0;
+    assign bank_req[i].wuser = we_i ? wuser_i : '0;
     assign bank_req[i].we    = we_i;
     prim_fifo_sync #(
       .Pass  ( 1'b1         ),
