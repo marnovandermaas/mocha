@@ -76,11 +76,21 @@ module top_chip_system #(
   // CVA6 configuration
   function automatic config_pkg::cva6_cfg_t build_cva6_config(config_pkg::cva6_user_cfg_t CVA6UserCfg);
     config_pkg::cva6_user_cfg_t cfg = CVA6UserCfg;
-    cfg.RVZiCond              = bit'(0);
-    cfg.CvxifEn               = bit'(0);
-    cfg.NrNonIdempotentRules  = unsigned'(1);
-    cfg.NonIdempotentAddrBase = 1024'({64'b0});
-    cfg.NonIdempotentLength   = 1024'({top_pkg::SRAMBase});
+    cfg.RVZiCond                    = bit'(0);
+    cfg.CvxifEn                     = bit'(0);
+    cfg.DmBaseAddress               = top_pkg::DebugMemBase;
+    cfg.NrExecuteRegionRules        = unsigned'(4);
+    cfg.ExecuteRegionAddrBase       = 1024'({top_pkg::DRAMBase,
+                                             top_pkg::DebugMemBase,
+                                             top_pkg::SRAMBase,
+                                             top_pkg::RomCtrlMemBase});
+    cfg.ExecuteRegionLength         = 1024'({top_pkg::DRAMUsableLength,
+                                             top_pkg::DebugMemLength,
+                                             top_pkg::SRAMLength,
+                                             top_pkg::RomCtrlMemLength});
+    cfg.NrCachedRegionRules         = unsigned'(1);
+    cfg.CachedRegionAddrBase        = 1024'({top_pkg::DRAMBase});
+    cfg.CachedRegionLength          = 1024'({top_pkg::DRAMUsableLength});
     return build_config_pkg::build_config(cfg);
   endfunction
 
