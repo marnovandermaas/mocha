@@ -7,7 +7,7 @@
 
   upstream: {
     url: "https://github.com/lowRISC/cva6-cheri.git",
-    rev: "mocha",
+    rev: "mocha_hpdcache",
   },
 
   exclude_from_upstream: [
