@@ -77,8 +77,8 @@
         --disable-shared \
         CC="clang \
           -target riscv64-linux-musl \
-          -march=rv64imafdczcherihybrid_zcherilevels \
-          -mabi=l64pc128d \
+          -march=rv64imaczcherihybrid_zcherilevels \
+          -mabi=l64pc128 \
           -mno-relax \
           -Xclang -target-feature -Xclang +cheri-bounded-vararg \
           -Xclang -target-feature -Xclang +cheri-bounded-memarg-caller \
@@ -119,21 +119,37 @@
       substituteAll ${./CrossToolchain.cmake.in} CrossToolchain.cmake
     '';
 
-    cmakeFlags = [
-      "--toolchain=../CrossToolchain.cmake"
-      (lib.cmakeFeature "CMAKE_BUILD_TYPE" "RelWithDebInfo")
-      (lib.cmakeFeature "LLVM_CONFIG_PATH" "NOTFOUND")
-      (lib.cmakeBool "CMAKE_DISABLE_FIND_PACKAGE_LLVM" true)
-      (lib.cmakeBool "COMPILER_RT_EXCLUDE_ATOMIC_BUILTIN" false)
-      (lib.cmakeBool "COMPILER_RT_BAREMETAL_BUILD" false)
-      (lib.cmakeBool "COMPILER_RT_DEFAULT_TARGET_ONLY" true)
-      (lib.cmakeFeature "TARGET_TRIPLE" "riscv64-linux-musl")
-      (lib.cmakeFeature "CMAKE_SYSROOT" "${muslc-linux-riscv64-purecap}")
-      (lib.cmakeBool "COMPILER_RT_DEBUG" true)
-      (lib.cmakeFeature "CMAKE_C_COMPILER" "${llvm_cheri}/bin/clang")
-      (lib.cmakeFeature "CMAKE_CXX_COMPILER" "${llvm_cheri}/bin/clang++")
-      (lib.cmakeFeature "CMAKE_ASM_COMPILER" "${llvm_cheri}/bin/clang")
-    ];
+    configurePhase = ''
+      runHook preConfigure
+
+      cmake -S . -B build \
+        --toolchain=../CrossToolchain.cmake \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DLLVM_CONFIG_PATH=NOTFOUND \
+        -DCMAKE_DISABLE_FIND_PACKAGE_LLVM=true \
+        -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=false \
+        -DCOMPILER_RT_BAREMETAL_BUILD=false \
+        -DCOMPILER_RT_DEFAULT_TARGET_ONLY=true \
+        -DTARGET_TRIPLE="riscv64-linux-musl" \
+        -DCMAKE_SYSROOT="${muslc-linux-riscv64-purecap}" \
+        -DCOMPILER_RT_DEBUG=true \
+        -DCMAKE_C_COMPILER=${llvm_cheri}/bin/clang \
+        -DCMAKE_CXX_COMPILER=${llvm_cheri}/bin/clang++ \
+        -DCMAKE_ASM_COMPILER=${llvm_cheri}/bin/clang \
+        -DCMAKE_C_FLAGS="-march=rv64imaczcherihybrid_zcherilevels -mabi=l64pc128 -isystem ${linux-headers-purecap}/usr/include" \
+        -DCMAKE_CXX_FLAGS="-march=rv64imaczcherihybrid_zcherilevels -mabi=l64pc128 -isystem ${linux-headers-purecap}/usr/include" \
+        -DCMAKE_ASM_FLAGS="-march=rv64imaczcherihybrid_zcherilevels -mabi=l64pc128 -isystem ${linux-headers-purecap}/usr/include" \
+        -DCMAKE_INSTALL_PREFIX="$out"
+    '';
+
+    buildPhase = ''
+      cmake --build build
+    '';
+
+    installPhase = ''
+      cmake --build build --target install
+      runHook postInstall
+    '';
 
     postInstall = ''
       mkdir -p $out/lib
