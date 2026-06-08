@@ -149,7 +149,7 @@ module top_chip_system #(
   assign addr_map = '{
     '{ idx: top_pkg::RomCtrlMem, start_addr: top_pkg::RomCtrlMemBase, end_addr: top_pkg::RomCtrlMemBase + top_pkg::RomCtrlMemLength },
     '{ idx: top_pkg::SRAM,       start_addr: top_pkg::SRAMBase,       end_addr: top_pkg::SRAMBase       + top_pkg::SRAMLength       },
-    '{ idx: top_pkg::DM_DEV,     start_addr: top_pkg::DebugBase,      end_addr: top_pkg::DebugBase      + top_pkg::DebugLength      },
+    '{ idx: top_pkg::DM_DEV,     start_addr: top_pkg::DebugMemBase,   end_addr: top_pkg::DebugMemBase   + top_pkg::DebugMemLength   },
     '{ idx: top_pkg::Mailbox,    start_addr: top_pkg::MailboxBase,    end_addr: top_pkg::MailboxBase    + top_pkg::MailboxLength    },
     '{ idx: top_pkg::RestOfChip, start_addr: top_pkg::RestOfChipBase, end_addr: top_pkg::RestOfChipBase + top_pkg::RestOfChipLength },
     '{ idx: top_pkg::TlCrossbar, start_addr: top_pkg::TlCrossbarBase, end_addr: top_pkg::TlCrossbarBase + top_pkg::TlCrossbarLength },
@@ -412,7 +412,7 @@ module top_chip_system #(
   // JTAG to DMI bridge
   dmi_jtag i_dmi_jtag (
     .clk_i           ( clkmgr_clocks.clk_main_infra ),
-    .rst_ni          ( rstmgr_aon_resets.rst_debug_n ),
+    .rst_ni          ( rstmgr_resets.rst_debug_n[rstmgr_pkg::DomainMainSel] ),
     .testmode_i      ( 1'b0            ),
     .test_rst_ni     ( 1'b1            ),
     .dmi_rst_no      (                 ), // keep open
@@ -438,7 +438,7 @@ module top_chip_system #(
       .axi_rsp_t             ( top_pkg::axi_resp_t       )
   ) i_dm_axi_master (
       .clk_i                 ( clkmgr_clocks.clk_main_infra ),
-      .rst_ni                ( rstmgr_aon_resets.rst_debug_n ),
+      .rst_ni                ( rstmgr_resets.rst_debug_n[rstmgr_pkg::DomainMainSel] ),
       .req_i                 ( dm_master_req             ),
       .type_i                ( ariane_pkg::SINGLE_REQ    ),
       .amo_i                 ( ariane_pkg::AMO_NONE      ),
@@ -471,7 +471,7 @@ module top_chip_system #(
   //    .AXI_USER_WIDTH ( top_pkg::AxiUserWidth )
   //) i_dm_axi2mem (
   //    .clk_i      ( clkmgr_clocks.clk_main_infra ),
-  //    .rst_ni     ( rstmgr_aon_resets.rst_debug_n ),
+  //    .rst_ni     ( rstmgr_resets.rst_debug_n[rstmgr_pkg::DomainMainSel] ),
   //    .slave      ( axi_debug_master          ),
   //    .req_o      ( dm_slave_req              ),
   //    .we_o       ( dm_slave_we               ),
@@ -491,7 +491,7 @@ module top_chip_system #(
     .NumBanks   ( 1                     )
   ) i_dm_axi_to_mem (
     .clk_i  (clkmgr_clocks.clk_main_infra),
-    .rst_ni (rstmgr_aon_resets.rst_debug_n),
+    .rst_ni (rstmgr_resets.rst_debug_n[rstmgr_pkg::DomainMainSel]),
 
     // AXI interface.
     .busy_o     ( ),
@@ -517,7 +517,7 @@ module top_chip_system #(
     .SelectableHarts     ( 1'b1              )
   ) i_dm_top (
       .clk_i             ( clkmgr_clocks.clk_main_infra ),
-      .rst_ni            ( rstmgr_aon_resets.rst_debug_n ),
+      .rst_ni            ( rstmgr_resets.rst_debug_n[rstmgr_pkg::DomainMainSel] ),
       .testmode_i        ( 1'b0              ),
       .ndmreset_o        ( ndmreset          ),
       .dmactive_o        (                   ), // active debug session
