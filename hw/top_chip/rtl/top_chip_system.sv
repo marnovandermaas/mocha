@@ -70,7 +70,14 @@ module top_chip_system #(
   input  top_pkg::axi_resp_t rest_of_chip_resp_i,
 
   // Ethernet IRQ in
-  input  logic ethernet_irq_i
+  input  logic ethernet_irq_i,
+
+  // JTAG signals.
+  input  logic dm_jtag_tck,
+  input  logic dm_jtag_tms,
+  input  logic dm_jtag_tdi,
+  output logic dm_jtag_tdo,
+  input  logic dm_jtag_trst_n
 );
 
   // Local parameters.
@@ -142,6 +149,7 @@ module top_chip_system #(
   assign addr_map = '{
     '{ idx: top_pkg::RomCtrlMem, start_addr: top_pkg::RomCtrlMemBase, end_addr: top_pkg::RomCtrlMemBase + top_pkg::RomCtrlMemLength },
     '{ idx: top_pkg::SRAM,       start_addr: top_pkg::SRAMBase,       end_addr: top_pkg::SRAMBase       + top_pkg::SRAMLength       },
+    '{ idx: top_pkg::DM_DEV,     start_addr: top_pkg::DebugBase,      end_addr: top_pkg::DebugBase      + top_pkg::DebugLength      },
     '{ idx: top_pkg::Mailbox,    start_addr: top_pkg::MailboxBase,    end_addr: top_pkg::MailboxBase    + top_pkg::MailboxLength    },
     '{ idx: top_pkg::RestOfChip, start_addr: top_pkg::RestOfChipBase, end_addr: top_pkg::RestOfChipBase + top_pkg::RestOfChipLength },
     '{ idx: top_pkg::TlCrossbar, start_addr: top_pkg::TlCrossbarBase, end_addr: top_pkg::TlCrossbarBase + top_pkg::TlCrossbarLength },
@@ -260,6 +268,15 @@ module top_chip_system #(
   logic pwrmgr_wakeup_irq;
   logic entropy_src_irq;
 
+  // JTAG to DMI signals
+  logic         debug_req_valid;
+  logic         debug_req_ready;
+  dm::dmi_req_t debug_req;
+
+  logic          debug_resp_valid;
+  logic          debug_resp_ready;
+  dm::dmi_resp_t debug_resp;
+
   always_comb begin
     // Single interrupt line per IP block.
     gpio_irq        = |gpio_interrupts;
@@ -288,6 +305,7 @@ module top_chip_system #(
   // Interrupts to the CVA6
   logic       intr_timer;
   logic [1:0] intr;
+  logic       debug_req_irq;
 
   // Signals to intercept AXI traffic from CVA6 for DV puprose
   top_pkg::axi_req_t  cva6_to_sim_req;
@@ -305,6 +323,37 @@ module top_chip_system #(
   pwrmgr_pkg::pwr_rst_rsp_t   pwrmgr_pwr_rst_rsp;
   logic                       pwrmgr_strap_en;
   lc_ctrl_pkg::lc_tx_t        pwrmgr_fetch_en;
+
+  // Signals to connect AXI traffic to and from Debug Module master
+  top_pkg::axi_req_t  dm_axi_m_req;
+  top_pkg::axi_resp_t dm_axi_m_resp;
+
+  // Debug module master interface signals
+  logic                      dm_master_req;
+  logic [CVA6Cfg.XLEN-1:0]   dm_master_add;
+  logic                      dm_master_we;
+  logic [CVA6Cfg.XLEN-1:0]   dm_master_wdata;
+  logic [CVA6Cfg.XLEN/8-1:0] dm_master_be;
+  logic                      dm_master_gnt;
+  logic                      dm_master_r_valid;
+  logic [CVA6Cfg.XLEN-1:0]   dm_master_r_rdata;
+
+  // Debug module slave interface signals
+  logic                      dm_slave_req;
+  logic                      dm_slave_we;
+  logic [CVA6Cfg.XLEN-1:0]   dm_slave_addr;
+  logic [CVA6Cfg.XLEN/8-1:0] dm_slave_be;
+  logic [CVA6Cfg.XLEN-1:0]   dm_slave_wdata;
+  logic [CVA6Cfg.XLEN-1:0]   dm_slave_rdata;
+  AXI_BUS #(
+    .AXI_ADDR_WIDTH ( top_pkg::AxiAddrWidth ),
+    .AXI_DATA_WIDTH ( top_pkg::AxiDataWidth ),
+    .AXI_ID_WIDTH   ( top_pkg::AxiIdWidth   ),
+    .AXI_USER_WIDTH ( top_pkg::AxiUserWidth )
+  ) axi_debug_master();
+
+  // Debug-controlled reset
+  logic ndmreset;
 
   // Define AXI Lite signals for the mailbox
   top_pkg::axi_lite_req_t  mailbox_main_req;
@@ -352,12 +401,152 @@ module top_chip_system #(
     .irq_i         (intr),
     .ipi_i         (1'b0),
     .time_irq_i    (intr_timer),
-    .debug_req_i   (1'b0),
+    .debug_req_i   (debug_req_irq),
     .rvfi_probes_o ( ),
     .cvxif_req_o   ( ),
     .cvxif_resp_i  ('0),
     .noc_req_o     (cva6_to_sim_req),
     .noc_resp_i    (sim_to_cva6_resp)
+  );
+
+  // JTAG to DMI bridge
+  dmi_jtag i_dmi_jtag (
+    .clk_i           ( clkmgr_clocks.clk_main_infra ),
+    .rst_ni          ( rstmgr_aon_resets.rst_debug_n ),
+    .testmode_i      ( 1'b0            ),
+    .test_rst_ni     ( 1'b1            ),
+    .dmi_rst_no      (                 ), // keep open
+    .dmi_req_valid_o ( debug_req_valid ),
+    .dmi_req_ready_i ( debug_req_ready ),
+    .dmi_req_o       ( debug_req       ),
+    .dmi_resp_valid_i( debug_resp_valid),
+    .dmi_resp_ready_o( debug_resp_ready),
+    .dmi_resp_i      ( debug_resp      ),
+    .tck_i           ( dm_jtag_tck     ),
+    .tms_i           ( dm_jtag_tms     ),
+    .trst_ni         ( dm_jtag_trst_n  ),
+    .td_i            ( dm_jtag_tdi     ),
+    .td_o            ( dm_jtag_tdo     ),
+    .tdo_oe_o        (                 )
+  );
+
+  // Debug Module AXI Master Adapter
+  axi_adapter #(
+      .CVA6Cfg               ( CVA6Cfg                   ),
+      .DATA_WIDTH            ( CVA6Cfg.XLEN              ),
+      .axi_req_t             ( top_pkg::axi_req_t        ),
+      .axi_rsp_t             ( top_pkg::axi_resp_t       )
+  ) i_dm_axi_master (
+      .clk_i                 ( clkmgr_clocks.clk_main_infra ),
+      .rst_ni                ( rstmgr_aon_resets.rst_debug_n ),
+      .req_i                 ( dm_master_req             ),
+      .type_i                ( ariane_pkg::SINGLE_REQ    ),
+      .amo_i                 ( ariane_pkg::AMO_NONE      ),
+      .gnt_o                 ( dm_master_gnt             ),
+      .addr_i                ( dm_master_add             ),
+      .we_i                  ( dm_master_we              ),
+      .wdata_i               ( dm_master_wdata           ),
+      .be_i                  ( dm_master_be              ),
+      .size_i                ( 2'b11                     ), // XLEN=64
+      .id_i                  ( '0                        ),
+      .valid_o               ( dm_master_r_valid         ),
+      .rdata_o               ( dm_master_r_rdata         ),
+      .id_o                  (                           ),
+      .critical_word_o       (                           ),
+      .critical_word_valid_o (                           ),
+      .axi_req_o             ( dm_axi_m_req              ),
+      .axi_resp_i            ( dm_axi_m_resp             )
+  );
+
+  assign xbar_host_req[top_pkg::DM_HOST] = dm_axi_m_req; // TODO: Make top_pkg::DM exist
+  assign dm_axi_m_resp                   = xbar_host_resp[top_pkg::DM_HOST];
+
+  // Debug Module AXI Slave Adapter
+  //`AXI_ASSIGN_FROM_REQ(axi_debug_master, xbar_device_req[top_pkg::DM_DEV])
+  //`AXI_ASSIGN_TO_RESP(xbar_device_resp[top_pkg::DM_DEV], axi_debug_master)
+  //axi2mem #(
+  //    .AXI_ID_WIDTH   ( top_pkg::AxiIdWidth   ),
+  //    .AXI_ADDR_WIDTH ( CVA6Cfg.XLEN          ),
+  //    .AXI_DATA_WIDTH ( CVA6Cfg.XLEN          ),
+  //    .AXI_USER_WIDTH ( top_pkg::AxiUserWidth )
+  //) i_dm_axi2mem (
+  //    .clk_i      ( clkmgr_clocks.clk_main_infra ),
+  //    .rst_ni     ( rstmgr_aon_resets.rst_debug_n ),
+  //    .slave      ( axi_debug_master          ),
+  //    .req_o      ( dm_slave_req              ),
+  //    .we_o       ( dm_slave_we               ),
+  //    .addr_o     ( dm_slave_addr             ),
+  //    .be_o       ( dm_slave_be               ),
+  //    .data_o     ( dm_slave_wdata            ),
+  //    .data_i     ( dm_slave_rdata            ),
+  //    .user_o     ( '0                        ),
+  //    .user_i     ( '0                        )
+  //);
+  axi_to_mem #(
+    .axi_req_t  ( top_pkg::axi_req_t    ),
+    .axi_resp_t ( top_pkg::axi_resp_t   ),
+    .AddrWidth  ( top_pkg::AxiAddrWidth ),
+    .DataWidth  ( top_pkg::AxiDataWidth ),
+    .IdWidth    ( top_pkg::AxiIdWidth   ),
+    .NumBanks   ( 1                     )
+  ) i_dm_axi_to_mem (
+    .clk_i  (clkmgr_clocks.clk_main_infra),
+    .rst_ni (rstmgr_aon_resets.rst_debug_n),
+
+    // AXI interface.
+    .busy_o     ( ),
+    .axi_req_i  (xbar_device_req[top_pkg::DM_DEV]),
+    .axi_resp_o (xbar_device_resp[top_pkg::DM_DEV]),
+
+    // Memory interface.
+    .mem_req_o    (dm_slave_req),
+    .mem_gnt_i    (1'b1), // XXX TODO this signal wasn't present in originally used axi2mem module
+    .mem_addr_o   (dm_slave_addr),
+    .mem_wdata_o  (dm_slave_wdata),
+    .mem_strb_o   (dm_slave_be),
+    .mem_atop_o   ( ), // XXX TODO this signal wasn't present in originally used axi2mem module
+    .mem_we_o     (dm_slave_we),
+    .mem_rvalid_i (1'b1), // XXX TODO this signal wasn't present in originally used axi2mem module
+    .mem_rdata_i  (dm_slave_rdata)
+  );
+
+  // Instantiate Debug Module
+  dm_top #(
+    .NrHarts             ( 1                 ),
+    .BusWidth            ( CVA6Cfg.XLEN      ),
+    .SelectableHarts     ( 1'b1              )
+  ) i_dm_top (
+      .clk_i             ( clkmgr_clocks.clk_main_infra ),
+      .rst_ni            ( rstmgr_aon_resets.rst_debug_n ),
+      .testmode_i        ( 1'b0              ),
+      .ndmreset_o        ( ndmreset          ),
+      .dmactive_o        (                   ), // active debug session
+      .debug_req_o       ( debug_req_irq     ),
+      .unavailable_i     ( 1'b0              ),
+      .hartinfo_i        ( {ariane_pkg::DebugHartInfo} ),
+      .slave_req_i       ( dm_slave_req      ),
+      .slave_we_i        ( dm_slave_we       ),
+      .slave_addr_i      ( dm_slave_addr     ),
+      .slave_be_i        ( dm_slave_be       ),
+      .slave_wdata_i     ( dm_slave_wdata    ),
+      .slave_rdata_o     ( dm_slave_rdata    ),
+      .master_req_o      ( dm_master_req     ),
+      .master_add_o      ( dm_master_add     ),
+      .master_we_o       ( dm_master_we      ),
+      .master_wdata_o    ( dm_master_wdata   ),
+      .master_be_o       ( dm_master_be      ),
+      .master_gnt_i      ( dm_master_gnt     ),
+      .master_r_valid_i  ( dm_master_r_valid ),
+      .master_r_err_i    ( '0                ),
+      .master_r_other_err_i ( '0             ),
+      .master_r_rdata_i  ( dm_master_r_rdata ),
+      .dmi_rst_ni        ( rst_ni            ),
+      .dmi_req_valid_i   ( debug_req_valid   ),
+      .dmi_req_ready_o   ( debug_req_ready   ),
+      .dmi_req_i         ( debug_req         ),
+      .dmi_resp_valid_o  ( debug_resp_valid  ),
+      .dmi_resp_ready_i  ( debug_resp_ready  ),
+      .dmi_resp_o        ( debug_resp        )
   );
 
   // Interception point for connecting simulation SRAM by disconnecting the AXI output. The
@@ -969,7 +1158,7 @@ module top_chip_system #(
     .fetch_en_o       (pwrmgr_fetch_en), // Determined by ROM checker
     .wakeups_i        ('0), // Always wake up immediately.
     .rstreqs_i        ('0), // No reset requests yet.
-    .ndmreset_req_i   ('0), // No debug module yet.
+    .ndmreset_req_i   (ndmreset), // From debug module
     .strap_o          (pwrmgr_strap_en),
     .low_power_o      ( ), // Low power not yet supported.
     .rom_ctrl_i       (rom_ctrl_pwrmgr_data),
