@@ -37,6 +37,7 @@ module dm_top #(
   // communicate whether the hart is unavailable (e.g.: power down)
   input  logic [NrHarts-1:0]    unavailable_i,
   input  dm::hartinfo_t [NrHarts-1:0] hartinfo_i,
+  input  logic                  fetch_enable_i,
 
   input  logic                  slave_req_i,
   input  logic                  slave_we_i,
@@ -87,6 +88,8 @@ module dm_top #(
   logic [dm::DataCount-1:0][31:0]   data_mem_csrs;
   logic                             data_valid;
   logic                             ndmreset;
+  logic                             ndmreset_pending;
+  logic                             ndmreset_ack;
   logic [19:0]                      hartsel;
   // System Bus Access Module
   logic [BusWidth-1:0]              sbaddress_csrs_sba;
@@ -123,6 +126,7 @@ module dm_top #(
     .dmi_resp_ready_i,
     .dmi_resp_o,
     .ndmreset_o              ( ndmreset              ),
+    .ndmreset_ack_i          ( ndmreset_ack          ),
     .dmactive_o,
     .hartsel_o               ( hartsel               ),
     .hartinfo_i,
@@ -226,5 +230,19 @@ module dm_top #(
     .be_i                    ( slave_be_i            ),
     .rdata_o                 ( slave_rdata_o         )
   );
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin : handle_reset_pending
+    if (!rst_ni) begin
+      ndmreset_pending <= 1'b0;
+    end else begin
+      if (ndmreset) begin
+        ndmreset_pending <= 1'b1;
+      end else if (ndmreset_ack) begin
+        ndmreset_pending <= 1'b0;
+      end
+    end
+  end
+
+  assign ndmreset_ack = ndmreset_pending & !ndmreset & fetch_enable_i;
 
 endmodule : dm_top
