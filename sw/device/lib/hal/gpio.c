@@ -24,6 +24,11 @@ void gpio_write_pin(gpio_t gpio, uint32_t pin, bool state)
     DEV_WRITE(gpio + reg, (mask << 16) | (state ? mask : 0u));
 }
 
+void gpio_write(gpio_t gpio, uint32_t val)
+{
+    DEV_WRITE(gpio + GPIO_REG_DIRECT_OUT, val);
+}
+
 void gpio_set_oe_pin(gpio_t gpio, uint32_t pin, bool output)
 {
     uint32_t reg = pin < 16 ? GPIO_REG_MASKED_OE_LOWER : GPIO_REG_MASKED_OE_UPPER;
